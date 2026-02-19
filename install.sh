@@ -20,6 +20,7 @@ for pkg in zsh tmux git curl; do
             echo "====================================================="
             echo " ERROR: '$pkg' is missing and '$USER' does not have sudo rights."
             echo " Please ask the server admin to install it, or install it locally in ~/.local/bin directory."
+            echo " zsh: 'sh -c "$(wget -O- https://raw.githubusercontent.com/romkatv/zsh-bin/master/install)'"
             echo "====================================================="
             exit 1
         fi
