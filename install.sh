@@ -8,7 +8,25 @@ echo "Starting dotfiles installation..."
 
 # Install core dependencies
 echo "Installing Zsh, Tmux, Git, and Curl..."
-sudo apt update && sudo apt install -y zsh tmux git curl
+for pkg in zsh tmux git curl; do
+    if ! command -v $pkg &> /dev/null; then
+        echo " -> $pkg is missing."
+        
+        # Check sudo privileges
+        if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
+            echo "    Attempting to install $pkg via sudo..."
+            sudo apt update && sudo apt install -y "$pkg"
+        else
+            echo "====================================================="
+            echo " ERROR: '$pkg' is missing and '$USER' does not have sudo rights."
+            echo " Please ask the server admin to install it, or install it locally in ~/.local/bin directory."
+            echo "====================================================="
+            exit 1
+        fi
+    else
+        echo " -> $pkg is already installed."
+    fi
+done
 
 # Install Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -64,7 +82,7 @@ ln -sf "$HOME/dotfiles/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 # Change default shell to Zsh
 if [ "$SHELL" != "$(which zsh)" ]; then
     echo "Changing default shell to zsh..."
-    sudo chsh -s $(which zsh) $(whoami)
+    chsh -s $(which zsh) $(whoami)
 fi
 
 echo "Installation complete! Please restart your terminal."
