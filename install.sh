@@ -2,6 +2,9 @@
 
 echo "Starting dotfiles installation..."
 
+# Ensure ~/.local/bin is in PATH for this script session
+export PATH="$HOME/.local/bin:$PATH"
+
 # ==========================
 # Core Installation
 # ==========================
@@ -15,13 +18,20 @@ for pkg in zsh tmux git curl xclip; do
         # Check sudo privileges
         if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
             echo "    Attempting to install $pkg via sudo..."
-            sudo apt update && sudo apt install -y "$pkg"
+            # Try apt (Debian/Ubuntu) or dnf/yum (RHEL/CentOS)
+            if command -v apt-get &> /dev/null; then
+                sudo apt update && sudo apt install -y "$pkg"
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y "$pkg"
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y "$pkg"
+            fi
         else
             echo "    No sudo rights detected for $pkg."
             
             # Ask the user for confirmation to install locally
             read -p "    Do you want to attempt a local (non-root) installation for $pkg? (y/n) " -n 1 -r
-            echo 
+            echo " "
             
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 case $pkg in
@@ -29,14 +39,30 @@ for pkg in zsh tmux git curl xclip; do
                         echo "    Attempting to install xclip locally in ~/.local/bin..."
                         mkdir -p "$HOME/.local/bin" "$HOME/xclip_tmp"
                         cd "$HOME/xclip_tmp" || exit
-                        apt-get download xclip 2>/dev/null
                         
-                        if ls *.deb 1> /dev/null 2>&1; then
-                            dpkg -x *.deb .
-                            mv usr/bin/xclip "$HOME/.local/bin/"
-                            echo "    xclip successfully installed to ~/.local/bin/"
+                        # Detect OS and extract accordingly
+                        if command -v apt-get &> /dev/null; then
+                            echo "    Detected Debian/Ubuntu system..."
+                            apt-get download xclip 2>/dev/null
+                            if ls *.deb 1> /dev/null 2>&1; then
+                                dpkg -x *.deb .
+                                mv usr/bin/xclip "$HOME/.local/bin/"
+                                echo "    xclip successfully installed to ~/.local/bin/"
+                            fi
+                        elif command -v dnf &> /dev/null || command -v yumdownloader &> /dev/null; then
+                            echo "    Detected RHEL/CentOS/Fedora system..."
+                            if command -v dnf &> /dev/null; then
+                                dnf download xclip 2>/dev/null
+                            else
+                                yumdownloader xclip 2>/dev/null
+                            fi
+                            if ls *.rpm 1> /dev/null 2>&1; then
+                                rpm2cpio *.rpm | cpio -idmv
+                                mv usr/bin/xclip "$HOME/.local/bin/"
+                                echo "    xclip successfully installed to ~/.local/bin/"
+                            fi
                         else
-                            echo "    WARNING: Failed to download xclip. Copy/paste might not work."
+                            echo "    WARNING: Unknown package manager. Cannot download xclip automatically."
                         fi
                         cd "$HOME" || exit
                         rm -rf "$HOME/xclip_tmp"
