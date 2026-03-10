@@ -6,9 +6,8 @@ echo "Starting dotfiles installation..."
 # Core Installation
 # ==========================
 
-# Install core dependencies
-echo "Installing Zsh, Tmux, Git, and Curl..."
-for pkg in zsh tmux git curl; do
+echo "Checking core dependencies (Zsh, Tmux, Git, Curl, xclip)..."
+for pkg in zsh tmux git curl xclip; do
     # Check if package is in PATH or in common local installation directories
     if ! command -v $pkg &> /dev/null && [ ! -f "$HOME/.local/bin/$pkg" ]; then
         echo " -> $pkg is missing."
@@ -18,12 +17,49 @@ for pkg in zsh tmux git curl; do
             echo "    Attempting to install $pkg via sudo..."
             sudo apt update && sudo apt install -y "$pkg"
         else
-            echo "====================================================="
-            echo " ERROR: '$pkg' is missing and '$USER' does not have sudo rights."
-            echo " Please ask the server admin to install it, or install it locally in ~/.local/bin directory."
-            echo " zsh: 'sh -c \"\$(wget -O- https://raw.githubusercontent.com/romkatv/zsh-bin/master/install)\"'"
-            echo "====================================================="
-            exit 1
+            echo "    No sudo rights detected for $pkg."
+            
+            # Ask the user for confirmation to install locally
+            read -p "    Do you want to attempt a local (non-root) installation for $pkg? (y/n) " -n 1 -r
+            echo 
+            
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                case $pkg in
+                    xclip)
+                        echo "    Attempting to install xclip locally in ~/.local/bin..."
+                        mkdir -p "$HOME/.local/bin" "$HOME/xclip_tmp"
+                        cd "$HOME/xclip_tmp" || exit
+                        apt-get download xclip 2>/dev/null
+                        
+                        if ls *.deb 1> /dev/null 2>&1; then
+                            dpkg -x *.deb .
+                            mv usr/bin/xclip "$HOME/.local/bin/"
+                            echo "    xclip successfully installed to ~/.local/bin/"
+                        else
+                            echo "    WARNING: Failed to download xclip. Copy/paste might not work."
+                        fi
+                        cd "$HOME" || exit
+                        rm -rf "$HOME/xclip_tmp"
+                        ;;
+                    zsh)
+                        echo "    Attempting to install Zsh locally using zsh-bin..."
+                        sh -c "$(curl -fsSL https://raw.githubusercontent.com/romkatv/zsh-bin/master/install)"
+                        ;;
+                    *)
+                        echo "    ====================================================="
+                        echo "    ERROR: Automated local installation for '$pkg' is not supported."
+                        echo "    Please ask your server admin to install it."
+                        echo "    ====================================================="
+                        exit 1
+                        ;;
+                esac
+            else
+                echo "    Skipping local installation for $pkg."
+                if [[ "$pkg" == "zsh" || "$pkg" == "tmux" ]]; then
+                    echo "    Fatal error: $pkg is strictly required for this setup. Exiting."
+                    exit 1
+                fi
+            fi
         fi
     else
         echo " -> $pkg is already installed."
@@ -67,7 +103,9 @@ if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlightin
 fi
 
 # Add xclip cleanup to .zlogout to help ssh disconnections
-echo 'killall xclip 2>/dev/null' >> ~/.zlogout
+if ! grep -q "killall xclip 2>/dev/null" "$HOME/.zlogout" 2>/dev/null; then
+    echo 'killall xclip 2>/dev/null' >> "$HOME/.zlogout"
+fi
 
 # ==========================
 # Create Symlinks
