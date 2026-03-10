@@ -66,6 +66,9 @@ if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlightin
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 fi
 
+# Add xclip cleanup to .zlogout to help ssh disconnections
+echo 'killall xclip 2>/dev/null' >> ~/.zlogout
+
 # ==========================
 # Create Symlinks
 # ==========================
