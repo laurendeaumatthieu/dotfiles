@@ -82,6 +82,9 @@ if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
 fi
 ln -sf "$HOME/dotfiles/zsh/.zshrc" "$HOME/.zshrc"
 
+# Link the aliases file
+ln -sf "$HOME/dotfiles/zsh/aliases.zsh" "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/aliases.zsh"
+
 # Tmux symlink
 TMUX_VERSION=$(tmux -V | awk '{print $2}' | sed 's/[^0-9.]*//g') # extract the version number
 if awk "BEGIN {exit !($TMUX_VERSION >= 3.1)}"; then
