@@ -45,7 +45,7 @@ source "$LOCAL_ENV"
 # CLI tools (pixi installs missing ones from conda-forge, no root needed)
 # ==========================
 missing=()
-for tool in zsh git tmux tree btop fzf zoxide; do
+for tool in zsh git tmux tree btop fzf zoxide gh; do
     command -v "$tool" &> /dev/null || missing+=("$tool")
 done
 if [ ${#missing[@]} -gt 0 ]; then
@@ -119,6 +119,11 @@ local = json.load(open(dst)) if os.path.exists(dst) else {}
 with open(dst, "w") as f:
     json.dump(merge(local, json.load(open(src))), f, indent=2)
 PY
+
+# ==========================
+# GitHub repositories (login first: it can also register the SSH key used below)
+# ==========================
+bash "$DOTFILES/clone-repos.sh"
 
 # ==========================
 # Claude vault (global CLAUDE.md + project memory)
