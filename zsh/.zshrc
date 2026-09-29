@@ -46,8 +46,40 @@ source $ZSH/oh-my-zsh.sh
 # Users are encouraged to define aliases in $ZSH_CUSTOM/aliases.zsh
 # For a full list of active aliases, run `alias`.
 
-# Use zoxide with cd command
-eval "$(zoxide init zsh --cmd cd)"
-
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+
+# Custom commands
+
+# Add venv as ipykernel
+add_venv_kernel() {
+    # Check if a virtual environment is currently active
+    if [ -z "$VIRTUAL_ENV" ]; then
+        echo "Error: No virtual environment activated."
+        echo "Please run 'source path/to/venv/bin/activate' first."
+        return 1
+    fi
+
+    # Check if the user provided a name for the kernel
+    if [ -z "$1" ]; then
+        echo "Usage: add_venv_kernel <kernel-name>"
+        echo "Example: add_venv_kernel my_data_project"
+        return 1
+    fi
+
+    KERNEL_NAME=$1
+
+    echo "Installing ipykernel in the active virtual environment..."
+    pip install ipykernel
+
+    echo "egistering the kernel with Jupyter..."
+    python -m ipykernel install --user --name="$KERNEL_NAME" --display-name="$KERNEL_NAME"
+
+    echo "Success! When you open Jupyter Notebook, look for the '$KERNEL_NAME' kernel."
+}
+
+# Use zoxide with cd command (must stay at the end of the file)
+# Silence the doctor warning in non-interactive shells (e.g. Claude Code snapshots)
+export _ZO_DOCTOR=0
+eval "$(zoxide init zsh --cmd cd)"
