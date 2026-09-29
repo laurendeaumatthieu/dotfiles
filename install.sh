@@ -123,6 +123,19 @@ PY
 # ==========================
 # GitHub repositories (login first: it can also register the SSH key used below)
 # ==========================
+# SSH to GitHub over port 443: works wherever HTTPS does (port 22 is often blocked)
+mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+if ! grep -q "Hostname ssh.github.com" "$HOME/.ssh/config" 2>/dev/null; then
+    cat >> "$HOME/.ssh/config" << 'EOF'
+
+Host github.com
+    Hostname ssh.github.com
+    Port 443
+    User git
+EOF
+    chmod 600 "$HOME/.ssh/config"
+fi
+
 bash "$DOTFILES/clone-repos.sh"
 
 # ==========================
