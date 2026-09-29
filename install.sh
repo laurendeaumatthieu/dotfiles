@@ -21,17 +21,25 @@ fi
 if [ ! -f "$LOCAL_ENV" ]; then
     read -rp "Workspace directory (projects, data) [$HOME]: " ws
     ws="${ws:-$HOME}"; ws="${ws/#\~/$HOME}"
-    read -rp "Temporary directory for all applications (empty = system default): " tmp
-    tmp="${tmp/#\~/$HOME}"
+    # Default: keep tmp/cache/state in $HOME unless the workspace is elsewhere
+    [ "$ws" = "$HOME" ] && def="" || def="$ws/.scratch"
+    read -rp "Directory for tmp/cache/state of all applications (empty = keep in \$HOME) [$def]: " scratch
+    scratch="${scratch:-$def}"; scratch="${scratch/#\~/$HOME}"
     mkdir -p "$ws" "$(dirname "$LOCAL_ENV")"
     echo "export WORKSPACE=\"$ws\"" > "$LOCAL_ENV"
-    if [ -n "$tmp" ]; then
-        mkdir -p "$tmp" && chmod 700 "$tmp"
-        echo "export TMPDIR=\"$tmp\"" >> "$LOCAL_ENV"
+    if [ -n "$scratch" ]; then
+        mkdir -p "$scratch"/{tmp,cache,state} && chmod 700 "$scratch"
+        # pip, uv, HuggingFace, torch, pixi... all follow XDG_CACHE_HOME
+        cat >> "$LOCAL_ENV" << EOF
+export TMPDIR="$scratch/tmp"
+export XDG_CACHE_HOME="$scratch/cache"
+export XDG_STATE_HOME="$scratch/state"
+EOF
     fi
 fi
 echo "Machine settings ($LOCAL_ENV, delete it to reconfigure):"
 sed 's/^/    /' "$LOCAL_ENV"
+source "$LOCAL_ENV"
 
 # ==========================
 # CLI tools (pixi installs missing ones from conda-forge, no root needed)
@@ -121,6 +129,11 @@ if awk "BEGIN {exit !($TMUX_VERSION >= 3.1)}"; then
     ln -sf "$DOTFILES/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 else
     ln -sf "$DOTFILES/tmux/tmux.conf" "$HOME/.tmux.conf"
+fi
+
+# VS Code config and extensions (only where the `code` CLI exists)
+if command -v code &> /dev/null; then
+    bash "$DOTFILES/vscode/install.sh"
 fi
 
 # ==========================

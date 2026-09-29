@@ -1,3 +1,7 @@
+# Machine-specific settings written by install.sh (WORKSPACE, TMPDIR, XDG_CACHE_HOME...)
+# Sourced first so the p10k instant prompt below reads the relocated cache
+[[ -r ~/.config/dotfiles/env.zsh ]] && source ~/.config/dotfiles/env.zsh
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -7,9 +11,6 @@ fi
 
 # If you come from bash you might have to change your $PATH.
 export PATH=$HOME/bin:$HOME/.local/bin:$HOME/.pixi/bin:/usr/local/bin:/opt/nvim-linux-x86_64/bin:$PATH
-
-# Machine-specific settings written by install.sh (WORKSPACE, TMPDIR)
-[[ -r ~/.config/dotfiles/env.zsh ]] && source ~/.config/dotfiles/env.zsh
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
