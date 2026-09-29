@@ -1,0 +1,79 @@
+{
+    "editor.wordWrap": "on",
+    "editor.minimap.enabled": false,
+    "editor.multiCursorModifier": "ctrlCmd",
+    "editor.fontLigatures": false,
+    "terminal.integrated.fontFamily": "MesloLGS NF",
+    
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    
+    "python.terminal.shellIntegration.enabled": false,
+    
+    "latex-workshop.latex.recipes": [
+    
+        {
+            "name": "latexmk",
+            "tools": [
+                "latexmk"
+            ]
+        }
+    ],
+    "latex-workshop.latex.tools": [
+        {
+            "name": "latexmk",
+            "command": "latexmk",
+            "args": [
+                "-pdf",
+                "--shell-escape",
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ]
+        }
+    ],
+    "latex-workshop.synctex.afterBuild.enabled": true,
+    "latex-workshop.latex.outDir": "%DIR%/build",
+    "editor.multiCursorLimit": 100000,
+    "workbench.editorAssociations": {
+        "*.copilotmd": "vscode.markdown.preview.editor",
+        "*.csv": "default"
+    },
+    "explorer.fileNesting.patterns": {
+        "*.ts": "${capture}.js",
+        "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+        "*.jsx": "${capture}.js",
+        "*.tsx": "${capture}.ts",
+        "tsconfig.json": "tsconfig.*.json",
+        "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb, bun.lock",
+        "*.sqlite": "${capture}.${extname}-*",
+        "*.db": "${capture}.${extname}-*",
+        "*.sqlite3": "${capture}.${extname}-*",
+        "*.db3": "${capture}.${extname}-*",
+        "*.sdb": "${capture}.${extname}-*",
+        "*.s3db": "${capture}.${extname}-*"
+    },
+    "python.analysis.typeCheckingMode": "basic",
+    "[python]": {
+        "diffEditor.ignoreTrimWhitespace": true
+    },
+    "cSpell.userWords": [
+        "DICOM",
+        "SEGMENTATIONS",
+        "serie"
+    ],
+    "workbench.editorLargeFileConfirmation": 30,
+    "terminal.integrated.mouseWheelScrollSensitivity": 3,
+    "terminal.integrated.gpuAcceleration": "off",
+    "claudeCode.preferredLocation": "panel",
+    "workbench.sideBar.location": "right",
+    "workbench.statusBar.visible": false,
+    "workbench.navigationControl.enabled": false,
+    "chat.titleBar.openInAgentsWindow.enabled": false,
+    "workbench.browser.showInTitleBar": false,
+    "workbench.browser.searchEngine": "google",
+    "workbench.layoutControl.enabled": false,
+    "window.newWindowProfile": "Default"
+}
