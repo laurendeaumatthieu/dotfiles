@@ -73,7 +73,7 @@ add_venv_kernel() {
     echo "Installing ipykernel in the active virtual environment..."
     pip install ipykernel
 
-    echo "egistering the kernel with Jupyter..."
+    echo "Registering the kernel with Jupyter..."
     python -m ipykernel install --user --name="$KERNEL_NAME" --display-name="$KERNEL_NAME"
 
     echo "Success! When you open Jupyter Notebook, look for the '$KERNEL_NAME' kernel."
