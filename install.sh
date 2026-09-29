@@ -1,74 +1,103 @@
 #!/bin/bash
+# Non-root installer: every tool lands in $HOME (~/.local/bin, ~/.pixi, ~/.oh-my-zsh).
+# Safe to re-run: each step is skipped when already done.
 
-echo "Starting dotfiles installation..."
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+LOCAL_ENV="$HOME/.config/dotfiles/env.zsh"
+VAULT_REPO="git@github.com:laurendeaumatthieu/claude-vault.git"
+export PATH="$HOME/.local/bin:$HOME/.pixi/bin:$PATH"
+
+echo "Starting dotfiles installation from $DOTFILES..."
+
+if ! command -v curl &> /dev/null; then
+    echo "ERROR: curl is required to download the other tools."
+    exit 1
+fi
 
 # ==========================
-# Core Installation
+# Workspace (machine-specific, not versioned)
 # ==========================
-
-# Install core dependencies
-echo "Installing Zsh, Tmux, Git, and Curl..."
-for pkg in zsh tmux git curl; do
-    # Check if package is in PATH or in common local installation directories
-    if ! command -v $pkg &> /dev/null && [ ! -f "$HOME/.local/bin/$pkg" ]; then
-        echo " -> $pkg is missing."
-        
-        # Check sudo privileges
-        if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-            echo "    Attempting to install $pkg via sudo..."
-            sudo apt update && sudo apt install -y "$pkg"
-        else
-            echo "====================================================="
-            echo " ERROR: '$pkg' is missing and '$USER' does not have sudo rights."
-            echo " Please ask the server admin to install it, or install it locally in ~/.local/bin directory."
-            echo " zsh: 'sh -c \"\$(wget -O- https://raw.githubusercontent.com/romkatv/zsh-bin/master/install)\"'"
-            echo "====================================================="
-            exit 1
-        fi
-    else
-        echo " -> $pkg is already installed."
+if [ ! -f "$LOCAL_ENV" ]; then
+    read -rp "Workspace directory (projects, data) [$HOME]: " ws
+    ws="${ws:-$HOME}"; ws="${ws/#\~/$HOME}"
+    read -rp "Temporary directory for all applications (empty = system default): " tmp
+    tmp="${tmp/#\~/$HOME}"
+    mkdir -p "$ws" "$(dirname "$LOCAL_ENV")"
+    echo "export WORKSPACE=\"$ws\"" > "$LOCAL_ENV"
+    if [ -n "$tmp" ]; then
+        mkdir -p "$tmp" && chmod 700 "$tmp"
+        echo "export TMPDIR=\"$tmp\"" >> "$LOCAL_ENV"
     fi
-done
+fi
+echo "Machine settings ($LOCAL_ENV, delete it to reconfigure):"
+sed 's/^/    /' "$LOCAL_ENV"
 
-# Install Oh My Zsh
+# ==========================
+# CLI tools (pixi installs missing ones from conda-forge, no root needed)
+# ==========================
+missing=()
+for tool in zsh git tmux tree btop fzf zoxide; do
+    command -v "$tool" &> /dev/null || missing+=("$tool")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+    echo "Installing via pixi: ${missing[*]}"
+    if ! command -v pixi &> /dev/null; then
+        curl -fsSL https://pixi.sh/install.sh | PIXI_NO_PATH_UPDATE=1 bash
+    fi
+    pixi global install "${missing[@]}"
+fi
+
+# Claude Code and herdr (both install into ~/.local/bin)
+if ! command -v claude &> /dev/null; then
+    echo "Installing Claude Code..."
+    curl -fsSL https://claude.ai/install.sh | bash
+fi
+if ! command -v herdr &> /dev/null; then
+    echo "Installing herdr..."
+    curl -fsSL https://herdr.dev/install.sh | sh
+fi
+herdr integration install claude
+
+# ==========================
+# Oh My Zsh and plugins
+# ==========================
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "Installing Oh My Zsh..."
-    KEEP_ZSHRC=yes RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    KEEP_ZSHRC=yes RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
-# Install Powerlevel10k
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
+if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
     echo "Installing Powerlevel10k..."
-    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
 fi
 
-# Install Zoxide
-if ! command -v zoxide &> /dev/null; then
-    echo "Installing Zoxide..."
-    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
-fi
-
-# Install FZF
-if [ ! -d "$HOME/.fzf" ]; then
-    echo "Installing FZF..."
-    git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-    ~/.fzf/install --all
-fi
-
-# Install Zsh Plugins
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
+if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
     echo "Installing zsh-autosuggestions..."
-    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
 fi
 
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
+if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
     echo "Installing zsh-syntax-highlighting..."
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
 fi
 
 # Add xclip cleanup to .zlogout to help ssh disconnections
 if ! grep -q "killall xclip 2>/dev/null" "$HOME/.zlogout" 2>/dev/null; then
     echo 'killall xclip 2>/dev/null' >> "$HOME/.zlogout"
+fi
+
+# ==========================
+# Claude vault (global CLAUDE.md + project memory)
+# ==========================
+if [ ! -d "$HOME/claude-vault" ]; then
+    echo "Cloning claude-vault..."
+    git clone "$VAULT_REPO" "$HOME/claude-vault" \
+        || echo "WARNING: vault clone failed (SSH key not registered on GitHub?). Re-run after fixing it."
+fi
+if [ -f "$HOME/claude-vault/CLAUDE.md" ]; then
+    mkdir -p "$HOME/.claude"
+    ln -sf "$HOME/claude-vault/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 fi
 
 # ==========================
@@ -80,24 +109,40 @@ echo "Creating symlinks..."
 if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
     mv "$HOME/.zshrc" "$HOME/.zshrc.backup"
 fi
-ln -sf "$HOME/dotfiles/zsh/.zshrc" "$HOME/.zshrc"
+ln -sf "$DOTFILES/zsh/.zshrc" "$HOME/.zshrc"
 
 # Link the aliases file
-ln -sf "$HOME/dotfiles/zsh/aliases.zsh" "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/aliases.zsh"
+ln -sf "$DOTFILES/zsh/aliases.zsh" "$ZSH_CUSTOM/aliases.zsh"
 
 # Tmux symlink
 TMUX_VERSION=$(tmux -V | awk '{print $2}' | sed 's/[^0-9.]*//g') # extract the version number
 if awk "BEGIN {exit !($TMUX_VERSION >= 3.1)}"; then
     mkdir -p "$HOME/.config/tmux"
-    ln -sf "$HOME/dotfiles/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
+    ln -sf "$DOTFILES/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 else
-    ln -sf "$HOME/dotfiles/tmux/tmux.conf" "$HOME/.tmux.conf"
+    ln -sf "$DOTFILES/tmux/tmux.conf" "$HOME/.tmux.conf"
 fi
 
-# Change default shell to Zsh
-if [ "$SHELL" != "$(which zsh)" ]; then
-    echo "Changing default shell to zsh..."
-    chsh -s $(which zsh) $(whoami)
+# ==========================
+# Default shell
+# ==========================
+# chsh needs zsh listed in /etc/shells (root-owned); otherwise bash execs zsh at login
+ZSH_BIN="$(command -v zsh)"
+if [ "$SHELL" != "$ZSH_BIN" ]; then
+    if ! { grep -qx "$ZSH_BIN" /etc/shells && chsh -s "$ZSH_BIN"; }; then
+        if ! grep -q ">>> dotfiles zsh >>>" "$HOME/.bashrc" 2>/dev/null; then
+            echo "chsh unavailable: bash will exec zsh from ~/.bashrc."
+            cat >> "$HOME/.bashrc" << 'EOF'
+# >>> dotfiles zsh >>>
+export PATH="$HOME/.local/bin:$HOME/.pixi/bin:$PATH"
+if [[ $- == *i* ]] && [[ "$SHELL" != */zsh ]] && command -v zsh &> /dev/null; then
+    export SHELL="$(command -v zsh)"
+    exec zsh -l
+fi
+# <<< dotfiles zsh <<<
+EOF
+        fi
+    fi
 fi
 
 echo "Installation complete! Please restart your terminal."
