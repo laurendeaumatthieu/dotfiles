@@ -133,6 +133,12 @@ Host github.com
 EOF
     chmod 600 "$HOME/.ssh/config"
 fi
+# Trust GitHub host keys fetched over HTTPS, so non-interactive git (scripts, Claude) never prompts
+if ! ssh-keygen -F "[ssh.github.com]:443" -f "$HOME/.ssh/known_hosts" &> /dev/null; then
+    curl -fsSL https://api.github.com/meta \
+        | python3 -c 'import json, sys; [print("[ssh.github.com]:443", k) for k in json.load(sys.stdin)["ssh_keys"]]' \
+        >> "$HOME/.ssh/known_hosts"
+fi
 
 bash "$DOTFILES/clone-repos.sh"
 
