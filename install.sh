@@ -22,7 +22,7 @@ if [ ! -f "$LOCAL_ENV" ]; then
     read -rp "Workspace directory (projects, data) [$HOME]: " ws
     ws="${ws:-$HOME}"; ws="${ws/#\~/$HOME}"
     # Default: keep tmp/cache/state in $HOME unless the workspace is elsewhere
-    [ "$ws" = "$HOME" ] && def="" || def="$ws/.scratch"
+    [ "$ws" = "$HOME" ] && def="" || def="$ws/.var"
     read -rp "Directory for tmp/cache/state of all applications (empty = keep in \$HOME) [$def]: " scratch
     scratch="${scratch:-$def}"; scratch="${scratch/#\~/$HOME}"
     mkdir -p "$ws" "$(dirname "$LOCAL_ENV")"
