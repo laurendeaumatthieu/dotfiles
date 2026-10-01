@@ -5,5 +5,9 @@
       "Bash(git reset --soft:*)"
     ]
   },
-  "theme": "dark"
+  "theme": "dark",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  }
 }
