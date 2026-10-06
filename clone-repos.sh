@@ -44,10 +44,11 @@ for d in "$DEST"/*/ "$HOME"/*/; do
     printf '%s\t%s\n' "$(sed -E 's#(\.git)?/?$##; s#.*[:/]([^/]+/[^/]+)$#\1#' <<< "$url" | tr 'A-Z' 'a-z')" "$(basename "$d")"
 done > "$CLONED"
 # Every reachable, non-archived repo (owned, collaborator, organization member): full_name <TAB> description,
-# most recently pushed first: fzf starts on the first line, so every level puts recent items under the cursor
+# most recently pushed first: fzf starts on the first line, so every level puts recent items under the cursor.
+# dotfiles and claude-vault are excluded: install.sh handles them
 repos=$(gh api --paginate "user/repos?affiliation=owner,collaborator,organization_member&per_page=100" \
     --jq '.[] | select(.archived | not) | [.pushed_at, .full_name, (.description // "")] | @tsv' \
-    | sort -r | cut -f2-)
+    | sort -r | cut -f2- | grep -viE "^$me/(dotfiles|claude-vault)\b")
 # Teams of the user: org <TAB> team slug
 teams=$(gh api --paginate user/teams --jq '.[] | [.organization.login, .slug] | @tsv' 2>/dev/null)
 
@@ -97,11 +98,14 @@ while true; do
         # Level 2: team, when the user belongs to teams of this organization
         owner_teams=$(awk -F'\t' -v o="$owner" '$1 == o {print $2}' <<< "$teams")
         if [ -n "$owner_teams" ]; then
-            # Teams by their most recently pushed repo (rank = first matching line of $list), then "all"
+            # Fetched outside the fzf command substitution: a subshell would lose the array
             declare -A team_repos=()
+            for t in $owner_teams; do
+                team_repos[$t]=$(gh api --paginate "orgs/$owner/teams/$t/repos?per_page=100" --jq '.[].full_name')
+            done
+            # Teams by their most recently pushed repo (rank = first matching line of $list), then "all"
             team=$( {
                 for t in $owner_teams; do
-                    team_repos[$t]=$(gh api --paginate "orgs/$owner/teams/$t/repos?per_page=100" --jq '.[].full_name')
                     rank=$(awk -F'\t' 'NR==FNR {k[$1]; next} $1 in k {print FNR; exit}' \
                         <(printf '%s\n' "${team_repos[$t]}") <(printf '%s\n' "$list"))
                     printf '%s\t%s\n' "${rank:-999999}" "$t"
