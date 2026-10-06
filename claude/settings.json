@@ -3,6 +3,9 @@
     "defaultMode": "auto",
     "allow": [
       "Bash(git reset --soft:*)"
+    ],
+    "deny": [
+      "Read(~/claude-vault/**/prompts.md)"
     ]
   },
   "hooks": {
@@ -12,9 +15,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/claude-vault/hooks/session-start.sh\"",
+            "command": "python3 \"$HOME/claude-vault/hooks/vault_hooks.py\" start",
             "timeout": 30,
             "statusMessage": "Syncing claude-vault..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-vault/hooks/vault_hooks.py\" log",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-vault/hooks/vault_hooks.py\" end",
+            "timeout": 60
           }
         ]
       }
