@@ -377,10 +377,12 @@ account (owned, collaborator, organisation member). Can be run any time:
 
 1. **Login**: runs `gh auth login` if not authenticated (choosing SSH lets `gh`
    generate and upload an SSH key).
-2. **Owner** level: `* all`, then the user's own account first (`(you)`), then
-   organisations, each with a repo count.
+   Every level is sorted by most recent push (`pushed_at`): the most recently active
+   owner, team and repo sit under the starting cursor; `* all` comes last.
+2. **Owner** level: accounts and organisations with a repo count (`(you)` marks the
+   user's own account), then `* all`.
 3. **Team** level (only for organisations where the user belongs to teams):
-   `* all` or a team, filtering to that team's repos.
+   a team (filtering to that team's repos) or `* all`.
 4. **Repos** level: multi-select with `TAB`, fuzzy search on name **and description**,
    `F2` selects the current repo and asks its folder name (default: the repo name; the
    preview line shows the target path), `ENTER` clones the selection into `$WORKSPACE`.
