@@ -68,6 +68,8 @@ if ! command -v rtk &> /dev/null; then
     echo "Installing rtk..."
     curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
 fi
+# Hook only: no RTK.md, and ~/.claude/CLAUDE.md (symlink into the vault) stays untouched
+"$HOME/.local/bin/rtk" init -g --hook-only --auto-patch
 
 # ==========================
 # Oh My Zsh and plugins
