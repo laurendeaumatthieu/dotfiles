@@ -8,7 +8,9 @@ DEST="${WORKSPACE:-$HOME}"
 ALL="* all"
 VAULT="$HOME/claude-vault"
 # Renames (owner/repo <TAB> folder) and the fzf helper, shared with fzf child processes
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+# Fall back to /tmp when $TMPDIR is missing (purged scratch disk)
+TMP=$(mktemp -d 2> /dev/null || mktemp -d -p /tmp) || exit 1
+trap 'rm -rf "$TMP"' EXIT
 RENAMES="$TMP/renames"; HELPER="$TMP/helper.sh"; touch "$RENAMES"
 cat > "$HELPER" << 'HELPER_EOF'
 # helper.sh rename|preview <owner/repo> <dest> <renames file>

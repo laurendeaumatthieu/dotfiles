@@ -1,6 +1,10 @@
 # Machine-specific settings written by install.sh (WORKSPACE, TMPDIR, XDG_CACHE_HOME...)
 # Sourced first so the p10k instant prompt below reads the relocated cache
 [[ -r ~/.config/dotfiles/env.zsh ]] && source ~/.config/dotfiles/env.zsh
+# Scratch disks get purged: recreate the redirected dirs, otherwise mktemp and caches fail
+for d in "$TMPDIR" "$XDG_CACHE_HOME" "$XDG_STATE_HOME"; do
+  [[ -n "$d" && ! -d "$d" ]] && mkdir -p -m 700 "$d" 2>/dev/null
+done
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
