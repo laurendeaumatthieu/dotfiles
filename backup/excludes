@@ -1,0 +1,10 @@
+# Caches, mounts and reinstallable content ($HOME is expanded by restic)
+$HOME/.cache
+$HOME/share
+$HOME/snap
+$HOME/.local/share/Trash
+$HOME/.local/share/Steam
+venv
+.venv
+node_modules
+__pycache__

@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily home backup
+
+[Timer]
+OnCalendar=*-*-* 13:00
+# Run at next boot/login when the machine was off at 13:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

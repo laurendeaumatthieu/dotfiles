@@ -16,15 +16,27 @@ if ! command -v curl &> /dev/null; then
 fi
 
 # ==========================
-# Workspace (machine-specific, not versioned)
+# Profile and workspace (machine-specific, not versioned)
 # ==========================
-if [ ! -f "$LOCAL_ENV" ]; then
+# Values come from $LOCAL_ENV only, not from the calling shell
+unset DOTFILES_PROFILE WORKSPACE
+[ -f "$LOCAL_ENV" ] && source "$LOCAL_ENV"
+if [ -z "$DOTFILES_PROFILE" ]; then
+    # Graphical session without SSH -> desktop (folders, Dolphin, backup); else server (CLI only)
+    default=server
+    [ -z "$SSH_CONNECTION" ] && [ -n "$DISPLAY$WAYLAND_DISPLAY" ] && default=desktop
+    read -rp "Profile: desktop or server [$default]: " DOTFILES_PROFILE
+    DOTFILES_PROFILE="${DOTFILES_PROFILE:-$default}"
+    mkdir -p "$(dirname "$LOCAL_ENV")"
+    echo "export DOTFILES_PROFILE=\"$DOTFILES_PROFILE\"" >> "$LOCAL_ENV"
+fi
+if [ -z "$WORKSPACE" ]; then
     read -rp "Workspace directory (git repos) [$HOME/work]: " ws
     ws="${ws:-$HOME/work}"; ws="${ws/#\~/$HOME}"
     read -rp "Directory for tmp/cache/state of all applications (empty = /tmp, ~/.cache, ~/.local/state): " scratch
     scratch="${scratch/#\~/$HOME}"
     mkdir -p "$ws" "$(dirname "$LOCAL_ENV")"
-    echo "export WORKSPACE=\"$ws\"" > "$LOCAL_ENV"
+    echo "export WORKSPACE=\"$ws\"" >> "$LOCAL_ENV"
     if [ -n "$scratch" ]; then
         mkdir -p "$scratch"/{tmp,cache,state} && chmod 700 "$scratch"
         # pip, uv, HuggingFace, torch, pixi... all follow XDG_CACHE_HOME
@@ -136,7 +148,8 @@ if ! ssh-keygen -F "[ssh.github.com]:443" -f "$HOME/.ssh/known_hosts" &> /dev/nu
         >> "$HOME/.ssh/known_hosts"
 fi
 
-bash "$DOTFILES/clone-repos.sh"
+read -rp "Clone GitHub repositories into $WORKSPACE now? (later: clone-repos.sh) [y/N]: " ans
+[[ "$ans" =~ ^[yY] ]] && bash "$DOTFILES/clone-repos.sh"
 
 # ==========================
 # Claude vault (global CLAUDE.md + project memory)
@@ -177,6 +190,54 @@ fi
 # VS Code config and extensions (only where the `code` CLI exists)
 if command -v code &> /dev/null; then
     bash "$DOTFILES/vscode/install.sh"
+fi
+
+# ==========================
+# Desktop profile: home folders, Dolphin places, restic backup
+# ==========================
+if [ "$DOTFILES_PROFILE" = desktop ]; then
+    mkdir -p "$HOME"/{desktop,downloads,images,screenshots,apps}
+    if command -v xdg-user-dirs-update &> /dev/null; then
+        xdg-user-dirs-update --set DESKTOP "$HOME/desktop"
+        xdg-user-dirs-update --set DOWNLOAD "$HOME/downloads"
+        xdg-user-dirs-update --set PICTURES "$HOME/images"
+    fi
+    # GNOME saves screenshots into <pictures>/Screenshots
+    ln -sfn ../screenshots "$HOME/images/Screenshots"
+
+    # Dolphin places: template only on a fresh machine (the file also holds per-machine devices)
+    PLACES="$HOME/.local/share/user-places.xbel"
+    if [ ! -f "$PLACES" ]; then
+        mkdir -p "$(dirname "$PLACES")"
+        sed "s#@HOME@#$HOME#g" "$DOTFILES/desktop/user-places.xbel" > "$PLACES"
+    fi
+
+    # restic: repository asked once (several machines can share one), password never versioned
+    RESTIC_DIR="$HOME/.config/restic"
+    if [ ! -f "$RESTIC_DIR/env" ]; then
+        read -rp "restic repository for the daily home backup (e.g. /mnt/<share>/restic, empty = none): " repo
+        if [ -n "$repo" ]; then
+            mkdir -p "$RESTIC_DIR" && chmod 700 "$RESTIC_DIR"
+            echo "RESTIC_REPOSITORY=$repo" > "$RESTIC_DIR/env"
+        fi
+    fi
+    if [ -f "$RESTIC_DIR/env" ]; then
+        command -v restic &> /dev/null || pixi global install restic
+        if [ ! -f "$RESTIC_DIR/password" ]; then
+            read -rsp "restic password (from the password manager; new repository: choose one): " pw; echo
+            (umask 077; printf '%s\n' "$pw" > "$RESTIC_DIR/password")
+        fi
+        (
+            set -a; source "$RESTIC_DIR/env"; set +a
+            export RESTIC_PASSWORD_FILE="$RESTIC_DIR/password" GODEBUG=asyncpreemptoff=1
+            restic cat config &> /dev/null || restic init
+        )
+        mkdir -p "$HOME/.local/bin" "$HOME/.config/systemd/user"
+        ln -sf "$DOTFILES/backup/backup-home" "$HOME/.local/bin/backup-home"
+        ln -sf "$DOTFILES/backup/backup-home.service" "$DOTFILES/backup/backup-home.timer" "$HOME/.config/systemd/user/"
+        systemctl --user daemon-reload
+        systemctl --user enable --now backup-home.timer
+    fi
 fi
 
 # ==========================

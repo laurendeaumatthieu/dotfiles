@@ -35,9 +35,15 @@ Re-running `./install.sh` at any time is safe: every step checks whether it is a
 ```
 dotfiles/
 ├── install.sh            # Main entry point: installs tools, links configs, sets the shell
+├── backup/
+│   ├── backup-home       # Daily restic snapshot of $HOME (desktop profile, symlinked to ~/.local/bin)
+│   ├── backup-home.{service,timer}  # systemd user units (symlinked)
+│   └── excludes          # restic exclude patterns
 ├── clone-repos.sh        # Interactive fzf browser to clone GitHub repos into $WORKSPACE
 ├── claude/
 │   └── settings.json     # Shared Claude Code settings (merged, not symlinked)
+├── desktop/
+│   └── user-places.xbel  # Dolphin places template (copied once, @HOME@ substituted)
 ├── tmux/
 │   └── tmux.conf         # Tmux config (symlinked)
 ├── vscode/
@@ -67,12 +73,13 @@ The script runs in this exact order. Each step is skipped if already done.
 - `$PATH` is extended with `~/.local/bin` and `~/.pixi/bin` for the duration of the script.
 - `curl` must exist; otherwise the script aborts (it downloads everything else).
 
-### 1. Workspace configuration (asked once per machine)
+### 1. Profile and workspace (asked once per machine)
 
-On first run, two questions are asked:
+On first run, three questions are asked:
 
 | Prompt | Default | Effect |
 |---|---|---|
+| `Profile: desktop or server` | `desktop` in a local graphical session, else `server` | Exported as `$DOTFILES_PROFILE`. `desktop` enables [step 10](#10-desktop-profile); `server` installs the CLI setup only. |
 | `Workspace directory (git repos)` | `$HOME/work` | Exported as `$WORKSPACE`. Repos are cloned there. |
 | `Directory for tmp/cache/state of all applications` | empty | If set, creates `<dir>/{tmp,cache,state}` (mode `700`) and exports `TMPDIR`, `XDG_CACHE_HOME`, `XDG_STATE_HOME` pointing there. If empty, standard Linux locations are kept (`/tmp`, `~/.cache`, `~/.local/state`). |
 
@@ -141,7 +148,7 @@ file, which must not end up in git.
 
 Runs [`clone-repos.sh`](#repository-cloner-clone-repossh): logs into GitHub with `gh`
 if needed, then opens an fzf browser to pick repos to clone into `$WORKSPACE`.
-Press `ESC` at the top level to skip.
+Asked first (`[y/N]`, default no); run `./clone-repos.sh` any time later.
 
 ### 8. Claude vault
 
@@ -162,7 +169,29 @@ Press `ESC` at the top level to skip.
 
 If the `code` CLI is available, [`vscode/install.sh`](#vs-code) runs too.
 
-### 10. Default shell
+### 10. Desktop profile
+
+Only when `DOTFILES_PROFILE=desktop`:
+
+- Creates `~/{desktop,downloads,images,screenshots,apps}` and points the XDG dirs at them
+  (`xdg-user-dirs-update --set DESKTOP|DOWNLOAD|PICTURES`). `~/images/Screenshots` is a
+  symlink to `~/screenshots`, since GNOME saves captures into `<pictures>/Screenshots`.
+- Dolphin places: `desktop/user-places.xbel` is copied only if `~/.local/share/user-places.xbel`
+  does not exist (the live file also stores per-machine devices; never overwritten).
+- restic backup: asks once for the repository path (empty = no backup), stored in
+  `~/.config/restic/env`. The password is read (hidden) into `~/.config/restic/password`
+  (mode `600`, **never versioned**: keep it in the password manager). The repository is
+  initialized if new; several machines can share it (snapshots are grouped by host).
+  `backup/backup-home` is linked into `~/.local/bin` and `backup-home.timer` enabled: daily at
+  13:00 (`Persistent=true` catches up after downtime), retention 7 daily / 4 weekly / 6 monthly,
+  weekly prune + 5% data check. Each run appends a line to `backup-history.log` next to the
+  repository; failures also raise a desktop notification.
+
+Useful commands (after `set -a; source ~/.config/restic/env; set +a; export RESTIC_PASSWORD_FILE=~/.config/restic/password`):
+`restic snapshots`, `restic restore <id> --include <path> --target /tmp/r`, `restic mount ~/mnt-backup`,
+`journalctl --user -u backup-home -f`.
+
+### 11. Default shell
 
 - If `zsh` is listed in `/etc/shells`, `chsh -s $(command -v zsh)` is tried.
 - Otherwise (typical when zsh comes from pixi and `/etc/shells` is root-owned), a guarded
@@ -196,7 +225,9 @@ Everything the installer creates or modifies, for easy auditing or uninstall:
 | `~/.zshrc`, `~/.zshrc.backup`, `~/.oh-my-zsh/custom/aliases.zsh`, tmux config | symlinks / backup | step 9 |
 | `~/.config/Code/User/{settings.json,keybindings.json,snippets}` (+ `.backup`) | symlinks | VS Code step |
 | `~/.local/share/fonts/MesloLGS NF *.ttf` | fonts | VS Code step |
-| `~/.bashrc` | appended block | step 10 (fallback only) |
+| `~/{desktop,downloads,images,screenshots,apps}`, `~/.config/user-dirs.dirs`, `~/.local/share/user-places.xbel` | folders / XDG dirs / Dolphin places | step 10 (desktop) |
+| `~/.config/restic/{env,password}`, `~/.local/bin/backup-home`, `~/.config/systemd/user/backup-home.*` | backup config / symlinks | step 10 (desktop) |
+| `~/.bashrc` | appended block | step 11 (fallback only) |
 
 ---
 
@@ -366,7 +397,7 @@ Details:
 | Goal | Command |
 |---|---|
 | Install / repair on a new machine | `./install.sh` |
-| Change workspace or scratch dir | `rm ~/.config/dotfiles/env.zsh && ./install.sh` |
+| Change profile, workspace or scratch dir | `rm ~/.config/dotfiles/env.zsh && ./install.sh` |
 | Clone more repos | `bash clone-repos.sh` |
 | Re-apply VS Code config / extensions | `bash vscode/install.sh` |
 | Reconfigure the prompt | `p10k configure` |

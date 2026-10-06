@@ -1,0 +1,30 @@
+#!/bin/bash
+# Daily restic snapshot of $HOME (run by backup-home.timer).
+# Machine settings: ~/.config/restic/env (RESTIC_REPOSITORY), password in ~/.config/restic/password.
+# One line per run is appended to backup-history.log next to the repository.
+set -euo pipefail
+set -a; source "$HOME/.config/restic/env"; set +a
+export RESTIC_PASSWORD_FILE="$HOME/.config/restic/password"
+# Go async preemption causes EINTR errors on CIFS mounts
+export GODEBUG=asyncpreemptoff=1
+RESTIC="$HOME/.pixi/bin/restic"
+HISTORY="$(dirname "$RESTIC_REPOSITORY")/backup-history.log"
+EXCLUDES="$(dirname "$(readlink -f "$0")")/excludes"
+start=$(date +%s)
+
+log() { printf '%s  %-6s  %-12s  %s  %s\n' "$(date '+%Y-%m-%d %H:%M')" "$1" "$(hostname -s)" "$2" \
+    "$(date -u -d @$(( $(date +%s) - start )) +%Hh%Mm%Ss)" >> "$HISTORY" 2>/dev/null || true; }
+trap 'log FAILED "see journalctl --user -u backup-home"; notify-send -u critical "Backup failed" "journalctl --user -u backup-home -n 50"' ERR
+
+# Trigger the autofs mount; fail early if the share is unreachable
+ls "$RESTIC_REPOSITORY/config" > /dev/null
+
+out=$("$RESTIC" backup "$HOME" --one-file-system --exclude-caches --exclude-file "$EXCLUDES" --tag daily | tee /dev/stderr) \
+    || { rc=$?; [ "$rc" -eq 3 ]; }  # 3: snapshot saved, some files unreadable
+"$RESTIC" forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6
+# Prune and integrity check are slow over CIFS: weekly only
+if [ "$(date +%u)" -eq 7 ]; then
+    "$RESTIC" prune
+    "$RESTIC" check --read-data-subset 5%
+fi
+log OK "snapshot $(sed -n 's/^snapshot \([0-9a-f]*\) saved$/\1/p' <<< "$out")  $(sed -n 's/^Added to the repository: //p' <<< "$out")"

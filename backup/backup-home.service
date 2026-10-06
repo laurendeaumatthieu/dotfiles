@@ -1,0 +1,8 @@
+[Unit]
+Description=restic backup of home to the network share
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/backup-home
+Nice=10
+IOSchedulingClass=idle
