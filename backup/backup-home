@@ -19,7 +19,7 @@ trap 'log FAILED "see journalctl --user -u backup-home"; notify-send -u critical
 # Trigger the autofs mount; fail early if the share is unreachable
 ls "$RESTIC_REPOSITORY/config" > /dev/null
 
-out=$("$RESTIC" backup "$HOME" --one-file-system --exclude-caches --exclude-file "$EXCLUDES" --tag daily | tee /dev/stderr) \
+out=$("$RESTIC" backup "$HOME" --one-file-system --exclude-caches --exclude-file "$EXCLUDES" --tag daily | tee >(cat >&2)) \
     || { rc=$?; [ "$rc" -eq 3 ]; }  # 3: snapshot saved, some files unreadable
 "$RESTIC" forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6
 # Prune and integrity check are slow over CIFS: weekly only
