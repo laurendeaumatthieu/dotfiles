@@ -46,6 +46,8 @@ missing=()
 for tool in zsh git tmux tree btop fzf zoxide gh; do
     command -v "$tool" &> /dev/null || missing+=("$tool")
 done
+# Real rg binary needed by rtk (Claude Code's rg is only a shell function)
+command -v rg &> /dev/null || missing+=(ripgrep)
 if [ ${#missing[@]} -gt 0 ]; then
     echo "Installing via pixi: ${missing[*]}"
     if ! command -v pixi &> /dev/null; then
