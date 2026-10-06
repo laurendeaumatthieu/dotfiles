@@ -102,27 +102,9 @@ fi
 # ==========================
 # Claude Code settings
 # ==========================
-# Merge shared keys into the local file instead of symlinking it: herdr adds
-# hooks with machine-specific absolute paths there. Lists are unioned.
-mkdir -p "$HOME/.claude"
-python3 - "$DOTFILES/claude/settings.json" "$HOME/.claude/settings.json" << 'PY'
-import json, os, sys
-src, dst = sys.argv[1:]
-
-def merge(local, shared):
-    for key, value in shared.items():
-        if isinstance(value, dict) and isinstance(local.get(key), dict):
-            merge(local[key], value)
-        elif isinstance(value, list) and isinstance(local.get(key), list):
-            local[key] += [x for x in value if x not in local[key]]
-        else:
-            local[key] = value
-    return local
-
-local = json.load(open(dst)) if os.path.exists(dst) else {}
-with open(dst, "w") as f:
-    json.dump(merge(local, json.load(open(src))), f, indent=2)
-PY
+# Merge shared keys into the local file (3-way, see the script); also run at every
+# Claude session start by the claude-vault hook, so install.sh is needed only once.
+python3 "$DOTFILES/claude/merge-settings.py"
 
 # ==========================
 # GitHub repositories (login first: it can also register the SSH key used below)
