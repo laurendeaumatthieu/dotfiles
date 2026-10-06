@@ -389,9 +389,10 @@ account (owned, collaborator, organisation member). Can be run any time:
 
 Details:
 
-- Archived repos are hidden, as are repos already present in `$WORKSPACE` or `$HOME`
-  (matched by folder name or by `origin` remote, so renamed clones count); cloned repos
-  disappear from the list immediately.
+- Archived repos are hidden. Repos already cloned in `$WORKSPACE` or `$HOME` (matched by
+  `origin` remote, so renamed clones count) stay listed in yellow with `[cloned: <folders>]`;
+  they can be cloned again under another folder name (`F2`, or asked at clone time when the
+  target exists; empty answer skips).
 - `ESC` goes back one level; `ESC` at the owner level quits.
 
 ---

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Browse GitHub repositories in fzf (owner -> team -> repos) and clone them into $WORKSPACE.
-# Archived repos and repos already cloned in $WORKSPACE or $HOME (by folder name or origin) are not listed.
+# Archived repos are not listed; repos already cloned in $WORKSPACE or $HOME (matched by origin) are shown
+# in yellow with their folders and can be cloned again under another folder name.
 # F2 renames the target folder of the current repo (and selects it); the name is then added to the
 # vault project's aliases.
 
@@ -11,7 +12,7 @@ VAULT="$HOME/claude-vault"
 # Fall back to /tmp when $TMPDIR is missing (purged scratch disk)
 TMP=$(mktemp -d 2> /dev/null || mktemp -d -p /tmp) || exit 1
 trap 'rm -rf "$TMP"' EXIT
-RENAMES="$TMP/renames"; HELPER="$TMP/helper.sh"; touch "$RENAMES"
+RENAMES="$TMP/renames"; HELPER="$TMP/helper.sh"; CLONED="$TMP/cloned"; touch "$RENAMES"
 cat > "$HELPER" << 'HELPER_EOF'
 # helper.sh rename|preview <owner/repo> <dest> <renames file>
 repo=$2; dest=$3; renames=$4; name=${repo#*/}
@@ -25,7 +26,8 @@ if [ "$1" = rename ]; then
     awk -F'\t' -v r="$repo" '$1 != r' "$renames" > "$renames.tmp" && mv "$renames.tmp" "$renames"
     [ "$dir" != "$name" ] && printf '%s\t%s\n' "$repo" "$dir" >> "$renames"
 else
-    echo "-> $dest/${current:-$name}"
+    target="$dest/${current:-$name}"
+    [ -e "$target" ] && echo "-> $target (exists: F2 to choose another name)" || echo "-> $target"
 fi
 HELPER_EOF
 
@@ -36,18 +38,14 @@ fi
 
 echo "Fetching repositories..."
 me=$(gh api user --jq .login)
-# owner/name of the origin of every repo already cloned (catches renamed folders)
-cloned=$(for d in "$DEST"/*/ "$HOME"/*/; do git -C "$d" remote get-url origin 2>/dev/null; done \
-    | sed -E 's#(\.git)?/?$##; s#.*[:/]([^/]+/[^/]+)$#\1#' | tr 'A-Z' 'a-z')
+# Already cloned repos: lowercase owner/name of the origin <TAB> local folder
+for d in "$DEST"/*/ "$HOME"/*/; do
+    url=$(git -C "$d" remote get-url origin 2>/dev/null) || continue
+    printf '%s\t%s\n' "$(sed -E 's#(\.git)?/?$##; s#.*[:/]([^/]+/[^/]+)$#\1#' <<< "$url" | tr 'A-Z' 'a-z')" "$(basename "$d")"
+done > "$CLONED"
 # Every reachable, non-archived repo (owned, collaborator, organization member): full_name <TAB> description
 repos=$(gh api --paginate "user/repos?affiliation=owner,collaborator,organization_member&per_page=100" \
-    --jq '.[] | select(.archived | not) | [.full_name, (.description // "")] | @tsv' \
-    | sort \
-    | while IFS=$'\t' read -r repo desc; do
-        name="${repo#*/}"
-        [ -e "$DEST/$name" ] || [ -e "$HOME/$name" ] || grep -qxi "$repo" <<< "$cloned" \
-            || printf '%s\t%s\n' "$repo" "$desc"
-    done)
+    --jq '.[] | select(.archived | not) | [.full_name, (.description // "")] | @tsv' | sort)
 # Teams of the user: org <TAB> team slug
 teams=$(gh api --paginate user/teams --jq '.[] | [.organization.login, .slug] | @tsv' 2>/dev/null)
 
@@ -66,6 +64,15 @@ add_vault_alias() {
     git -C "$VAULT" add "$log" && git -C "$VAULT" commit -qm "docs(${1,,}): add folder alias $2" \
         && git -C "$VAULT" push -q 2>/dev/null
     echo "Vault: alias '$2' added to ${log#$VAULT/}"
+}
+
+# fzf lines: raw full_name (hidden, used by {1}) <TAB> displayed full_name <TAB> description;
+# cloned repos in yellow with their folders
+decorate() {
+    awk -F'\t' 'NR==FNR {d[$1] = ($1 in d ? d[$1] ", " : "") $2; next}
+        $1 != "" {k = tolower($1)
+            if (k in d) printf "%s\t\033[33m%s\033[0m\t%s \033[2m[cloned: %s]\033[0m\n", $1, $1, $2, d[k]
+            else printf "%s\t%s\t%s\n", $1, $1, $2}' "$CLONED" - 
 }
 
 # Keep only the lines of $2 whose first field is listed in $1
@@ -99,8 +106,8 @@ while true; do
     fi
 
     # Level 3: repositories (multi-select, keyword search on name and description)
-    selected=$(grep -v '^$' <<< "$list" \
-        | SHELL=bash fzf --multi --delimiter='\t' --prompt="Clone into $DEST > " \
+    selected=$(decorate <<< "$list" \
+        | SHELL=bash fzf --multi --ansi --delimiter='\t' --with-nth=2.. --prompt="Clone into $DEST > " \
               --header="TAB: select   F2: select + rename folder   ENTER: clone selection   ESC: back" \
               --preview="bash '$HELPER' preview {1} '$DEST' '$RENAMES'" --preview-window=down,1 \
               --bind="f2:execute(bash '$HELPER' rename {1} '$DEST' '$RENAMES')+select+refresh-preview" \
@@ -108,8 +115,12 @@ while true; do
     for repo in $selected; do
         name="${repo#*/}"
         dir=$(awk -F'\t' -v r="$repo" '$1 == r {print $2}' "$RENAMES"); dir="${dir:-$name}"
+        while [ -e "$DEST/$dir" ]; do
+            read -rp "$DEST/$dir exists. Folder name for $repo (empty = skip): " dir < /dev/tty
+            [ -z "$dir" ] && continue 2
+        done
         gh repo clone "$repo" "$DEST/$dir" < /dev/null || continue
-        repos=$(awk -F'\t' -v r="$repo" '$1 != r' <<< "$repos")
+        printf '%s\t%s\n' "${repo,,}" "$dir" >> "$CLONED"
         [ "$dir" != "$name" ] && add_vault_alias "$name" "$dir"
     done
 done
