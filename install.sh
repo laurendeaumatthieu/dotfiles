@@ -54,7 +54,10 @@ source "$LOCAL_ENV"
 # ~/share: one symlink per network disk mounted under /mnt (autofs, cifs, nfs)
 for mnt in $(findmnt -rn -t autofs,cifs,nfs,nfs4 -o TARGET | grep '^/mnt/' | sort -u); do
     mkdir -p "$HOME/share"
-    ln -sfn "$mnt" "$HOME/share/$(basename "$mnt")"
+    link="$HOME/share/$(basename "$mnt")"
+    # Remove then recreate: some ln implementations ignore -n and would write inside the mount
+    [ -L "$link" ] && rm "$link"
+    [ -e "$link" ] || ln -s "$mnt" "$link"
 done
 
 # ==========================
