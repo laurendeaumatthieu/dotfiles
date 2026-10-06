@@ -382,12 +382,16 @@ account (owned, collaborator, organisation member). Can be run any time:
 3. **Team** level (only for organisations where the user belongs to teams):
    `* all` or a team, filtering to that team's repos.
 4. **Repos** level: multi-select with `TAB`, fuzzy search on name **and description**,
-   `ENTER` clones the selection into `$WORKSPACE/<repo-name>`.
+   `ENTER` clones the selection into `$WORKSPACE`. For each repo a folder name is asked
+   (default: the repo name). When it differs and the vault has a project named after the
+   repo, the folder name is appended to `aliases:` in that project's `logbook.md`
+   (committed and pushed), so the claude-vault hook still resolves it.
 
 Details:
 
-- Repos already present in `$WORKSPACE` or `$HOME` are hidden; cloned repos disappear
-  from the list immediately.
+- Archived repos are hidden, as are repos already present in `$WORKSPACE` or `$HOME`
+  (matched by folder name or by `origin` remote, so renamed clones count); cloned repos
+  disappear from the list immediately.
 - `ESC` goes back one level; `ESC` at the owner level quits.
 
 ---
