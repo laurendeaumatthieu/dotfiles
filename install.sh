@@ -54,7 +54,7 @@ if [ ${#missing[@]} -gt 0 ]; then
     pixi global install "${missing[@]}"
 fi
 
-# Claude Code and herdr (both install into ~/.local/bin)
+# Claude Code, herdr and rtk (all install into ~/.local/bin)
 if ! command -v claude &> /dev/null; then
     echo "Installing Claude Code..."
     curl -fsSL https://claude.ai/install.sh | bash
@@ -64,6 +64,10 @@ if ! command -v herdr &> /dev/null; then
     curl -fsSL https://herdr.dev/install.sh | sh
 fi
 herdr integration install claude
+if ! command -v rtk &> /dev/null; then
+    echo "Installing rtk..."
+    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+fi
 
 # ==========================
 # Oh My Zsh and plugins
