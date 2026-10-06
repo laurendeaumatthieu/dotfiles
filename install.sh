@@ -19,8 +19,8 @@ fi
 # Workspace (machine-specific, not versioned)
 # ==========================
 if [ ! -f "$LOCAL_ENV" ]; then
-    read -rp "Workspace directory (projects, data) [$HOME]: " ws
-    ws="${ws:-$HOME}"; ws="${ws/#\~/$HOME}"
+    read -rp "Workspace directory (git repos) [$HOME/work]: " ws
+    ws="${ws:-$HOME/work}"; ws="${ws/#\~/$HOME}"
     read -rp "Directory for tmp/cache/state of all applications (empty = /tmp, ~/.cache, ~/.local/state): " scratch
     scratch="${scratch/#\~/$HOME}"
     mkdir -p "$ws" "$(dirname "$LOCAL_ENV")"
@@ -38,6 +38,12 @@ fi
 echo "Machine settings ($LOCAL_ENV, delete it to reconfigure):"
 sed 's/^/    /' "$LOCAL_ENV"
 source "$LOCAL_ENV"
+
+# ~/share: one symlink per network disk mounted under /mnt (autofs, cifs, nfs)
+for mnt in $(findmnt -rn -t autofs,cifs,nfs,nfs4 -o TARGET | grep '^/mnt/' | sort -u); do
+    mkdir -p "$HOME/share"
+    ln -sfn "$mnt" "$HOME/share/$(basename "$mnt")"
+done
 
 # ==========================
 # CLI tools (pixi installs missing ones from conda-forge, no root needed)

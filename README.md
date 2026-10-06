@@ -73,7 +73,7 @@ On first run, two questions are asked:
 
 | Prompt | Default | Effect |
 |---|---|---|
-| `Workspace directory (projects, data)` | `$HOME` | Exported as `$WORKSPACE`. Repos are cloned there. |
+| `Workspace directory (git repos)` | `$HOME/work` | Exported as `$WORKSPACE`. Repos are cloned there. |
 | `Directory for tmp/cache/state of all applications` | empty | If set, creates `<dir>/{tmp,cache,state}` (mode `700`) and exports `TMPDIR`, `XDG_CACHE_HOME`, `XDG_STATE_HOME` pointing there. If empty, standard Linux locations are kept (`/tmp`, `~/.cache`, `~/.local/state`). |
 
 Answers are written to **`~/.config/dotfiles/env.zsh`** (machine-specific, *not*
@@ -82,6 +82,10 @@ directory is to move heavy caches (pip, uv, pixi, HuggingFace, torch...) off a s
 `$HOME` quota onto a large work disk — they all honour `XDG_CACHE_HOME`.
 
 To reconfigure: `rm ~/.config/dotfiles/env.zsh && ./install.sh`.
+
+Network data disks go in **`~/share`**: every autofs/cifs/nfs mount under `/mnt` gets a
+symlink `~/share/<name>` (refreshed on each run; nothing is created when there is none).
+Backup scripts that follow symlinks (`rsync -L`) must exclude `~/share`.
 
 ### 2. CLI tools (no root)
 
@@ -180,6 +184,7 @@ Everything the installer creates or modifies, for easy auditing or uninstall:
 |---|---|---|
 | `~/.config/dotfiles/env.zsh` | generated file | step 1 |
 | `<scratch>/{tmp,cache,state}` | directories | step 1 (optional) |
+| `~/share/<mount>` | symlinks to `/mnt/*` network mounts | step 1 |
 | `~/.pixi/` | tool install | step 2 |
 | `~/.local/bin/claude`, `~/.local/bin/herdr` | binaries | step 3 |
 | `~/.oh-my-zsh/` (+ theme and plugins) | tool install | step 4 |
