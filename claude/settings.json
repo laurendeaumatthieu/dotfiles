@@ -5,6 +5,21 @@
       "Bash(git reset --soft:*)"
     ]
   },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/claude-vault/hooks/session-start.sh\"",
+            "timeout": 30,
+            "statusMessage": "Syncing claude-vault..."
+          }
+        ]
+      }
+    ]
+  },
   "theme": "dark",
   "attribution": {
     "commit": "",
