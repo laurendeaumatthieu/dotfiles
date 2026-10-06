@@ -1,11 +1,31 @@
 #!/bin/bash
 # Browse GitHub repositories in fzf (owner -> team -> repos) and clone them into $WORKSPACE.
 # Archived repos and repos already cloned in $WORKSPACE or $HOME (by folder name or origin) are not listed.
-# Each clone can get a custom folder name; it is then added to the vault project's aliases.
+# F2 renames the target folder of the current repo (and selects it); the name is then added to the
+# vault project's aliases.
 
 DEST="${WORKSPACE:-$HOME}"
 ALL="* all"
 VAULT="$HOME/claude-vault"
+# Renames (owner/repo <TAB> folder) and the fzf helper, shared with fzf child processes
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+RENAMES="$TMP/renames"; HELPER="$TMP/helper.sh"; touch "$RENAMES"
+cat > "$HELPER" << 'HELPER_EOF'
+# helper.sh rename|preview <owner/repo> <dest> <renames file>
+repo=$2; dest=$3; renames=$4; name=${repo#*/}
+current=$(awk -F'\t' -v r="$repo" '$1 == r {print $2}' "$renames")
+if [ "$1" = rename ]; then
+    while true; do
+        read -rp "Folder name for $repo [${current:-$name}]: " dir < /dev/tty
+        dir=${dir:-${current:-$name}}
+        [ -e "$dest/$dir" ] && echo "$dest/$dir already exists." || break
+    done
+    awk -F'\t' -v r="$repo" '$1 != r' "$renames" > "$renames.tmp" && mv "$renames.tmp" "$renames"
+    [ "$dir" != "$name" ] && printf '%s\t%s\n' "$repo" "$dir" >> "$renames"
+else
+    echo "-> $dest/${current:-$name}"
+fi
+HELPER_EOF
 
 if ! gh auth status &> /dev/null; then
     echo "GitHub login (choose SSH to also generate/upload an SSH key)..."
@@ -78,16 +98,14 @@ while true; do
 
     # Level 3: repositories (multi-select, keyword search on name and description)
     selected=$(grep -v '^$' <<< "$list" \
-        | fzf --multi --delimiter='\t' --prompt="Clone into $DEST > " \
-              --header="TAB: select   ENTER: clone selection   ESC: back" \
+        | SHELL=bash fzf --multi --delimiter='\t' --prompt="Clone into $DEST > " \
+              --header="TAB: select   F2: select + rename folder   ENTER: clone selection   ESC: back" \
+              --preview="bash '$HELPER' preview {1} '$DEST' '$RENAMES'" --preview-window=down,1 \
+              --bind="f2:execute(bash '$HELPER' rename {1} '$DEST' '$RENAMES')+select+refresh-preview" \
         | cut -f1)
     for repo in $selected; do
         name="${repo#*/}"
-        while true; do
-            read -rp "Folder name for $repo [$name]: " dir < /dev/tty
-            dir="${dir:-$name}"
-            [ -e "$DEST/$dir" ] && echo "$DEST/$dir already exists." || break
-        done
+        dir=$(awk -F'\t' -v r="$repo" '$1 == r {print $2}' "$RENAMES"); dir="${dir:-$name}"
         gh repo clone "$repo" "$DEST/$dir" < /dev/null || continue
         repos=$(awk -F'\t' -v r="$repo" '$1 != r' <<< "$repos")
         [ "$dir" != "$name" ] && add_vault_alias "$name" "$dir"
