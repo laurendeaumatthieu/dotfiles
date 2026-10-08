@@ -75,5 +75,17 @@
     "workbench.browser.showInTitleBar": false,
     "workbench.browser.searchEngine": "google",
     "workbench.layoutControl.enabled": false,
-    "window.newWindowProfile": "Default"
+    "window.newWindowProfile": "Default",
+    "search.followSymlinks": false,
+    "files.watcherExclude": {
+        "**/share/**": true,
+        "/mnt/**": true,
+        "**/.cache/**": true,
+        "**/.pixi/**": true,
+        "**/.steam/**": true,
+        "**/.local/share/**": true,
+        "**/node_modules/**": true,
+        "**/.git/objects/**": true
+    },
+    "npm.autoDetect": "off"
 }

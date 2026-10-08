@@ -27,6 +27,10 @@ if [ -z "$SSH_CONNECTION" ]; then
     ln -sfn "$DOTFILES_VSCODE/$item" "$target"
   done
 
+  # Workspace settings used when $HOME is opened as a folder (hidden dotfiles, no share/ indexing)
+  mkdir -p "$HOME/.vscode"
+  ln -sfn "$DOTFILES_VSCODE/home-settings.json" "$HOME/.vscode/settings.json"
+
   # MesloLGS NF font used by Powerlevel10k and the integrated terminal
   FONT_DIR="$HOME/.local/share/fonts"
   if ! fc-list 2>/dev/null | grep -q "MesloLGS NF"; then
