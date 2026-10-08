@@ -267,6 +267,7 @@ File: `zsh/.zshrc` → `~/.zshrc`. Load order:
 |---|---|---|
 | `add_venv_kernel <name>` | `.zshrc` | installs `ipykernel` in the **active** venv and registers it as a Jupyter kernel named `<name>` |
 | `sv` (`find_and_source_venv`) | `aliases.zsh` | walks up from `$PWD` to find `venv/bin/activate` and sources it |
+| `purge` | `aliases.zsh` | empties `~/.cache` (keeps `claude-vault/`, `dotfiles/`), Flatpak caches, and own `/tmp` / `$TMPDIR` entries older than 24h; prints the space freed |
 | `cd` | zoxide | zoxide-powered `cd` (`cdi` for interactive pick) |
 
 `_ZO_DOCTOR=0` silences zoxide's warning in non-interactive shells (e.g. Claude Code
