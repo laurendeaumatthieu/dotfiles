@@ -21,17 +21,19 @@ alias sv='find_and_source_venv'
 # temp entries touched in the last 24h (live sockets of tmux, herdr, VS Code, Claude).
 purge() {
     local cache="${XDG_CACHE_HOME:-$HOME/.cache}" t
-    local -a tmps=(/tmp) targets
+    local -a tmps=(/tmp) items
     [[ -n "$TMPDIR" && "${TMPDIR%/}" != /tmp ]] && tmps+=("${TMPDIR%/}")
-    targets=("$cache" ${tmps[@]} $HOME/.var/app/*/cache(N))
-    local before=$(du -sck $targets 2>/dev/null | tail -1 | cut -f1)
 
-    find "$cache" -mindepth 1 -maxdepth 1 ! -name claude-vault ! -name dotfiles -exec rm -rf {} +
+    items=(${(0)"$(find "$cache" -mindepth 1 -maxdepth 1 ! -name claude-vault ! -name dotfiles -print0)"})
     for t in $tmps; do
-        find "$t" -mindepth 1 -maxdepth 1 -user "$USER" -mtime +0 -exec rm -rf {} + 2>/dev/null
+        items+=(${(0)"$(find "$t" -mindepth 1 -maxdepth 1 -user "$USER" -mtime +0 -print0 2>/dev/null)"})
     done
-    for t in $HOME/.var/app/*/cache(N); do rm -rf "$t"/*(DN); done
+    items+=($HOME/.var/app/*/cache/*(DN))
+    (( $#items )) || { echo "Nothing to purge."; return 0; }
 
-    local after=$(du -sck $targets 2>/dev/null | tail -1 | cut -f1)
-    echo "Freed $(( (before - after) / 1024 )) MB"
+    local size=$(du -sch $items 2>/dev/null | tail -1 | cut -f1)
+    read -q "?Delete $#items items ($size)? [y/N] " || { echo; return 1; }
+    echo
+    rm -rf $items 2>/dev/null
+    echo "Freed $size"
 }
