@@ -56,5 +56,7 @@
         "*.code-workspace": true,
         "steam-keyring.gpg~": true
     },
-    "python.analysis.exclude": ["share", "**/node_modules", "**/__pycache__", "**/.*"]
+    "python.analysis.exclude": ["share", "**/node_modules", "**/__pycache__", "**/.*"],
+    // Server venvs are unreachable through ~/share mounts: silence unresolved imports only
+    "python.analysis.diagnosticSeverityOverrides": { "reportMissingImports": "none" }
 }
