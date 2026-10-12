@@ -37,3 +37,26 @@ purge() {
     rm -rf $items 2>/dev/null
     echo "Freed $size"
 }
+# Removes FortiClient IPsec leftovers (VPN IP, DNS, routes) that an abrupt disconnect
+# leaves in the active wifi/ethernet profiles; they make the next VPN connect hang.
+# Also releases ethernet ports without carrier: FortiClient keeps binding IKE to their
+# stale address. Refuses to run while the VPN works (its live settings use the same fields).
+forti-reset() {
+    local uuid dev name found=0
+    timeout 2 bash -c '</dev/tcp/10.33.35.35/445' 2>/dev/null \
+        && { echo "VPN is up (10.33.35.35 reachable): nothing to reset."; return 1; }
+    for dev in /sys/class/net/en*(N); do
+        [[ "$(cat $dev/carrier 2>/dev/null)" == 1 ]] && continue
+        ip -4 -br addr show ${dev:t} | grep -q '[0-9]\.' || continue
+        nmcli dev disconnect ${dev:t} >/dev/null && echo "Released ${dev:t} (no link)" && found=1
+    done
+    while IFS=: read -r uuid dev; do
+        name=$(nmcli -g connection.id con show "$uuid")
+        [[ "$(nmcli -g ipv4.addresses,ipv4.dns con show "$uuid")" == *10.33.* ]] || continue
+        found=1
+        nmcli con mod "$uuid" ipv4.addresses '' ipv4.dns '' ipv4.ignore-auto-dns no \
+            ipv4.routes '' ipv4.ignore-auto-routes no ipv6.ignore-auto-routes no \
+            && nmcli dev reapply "$dev" >/dev/null && echo "Cleaned $name ($dev)"
+    done < <(nmcli -t -f UUID,TYPE,DEVICE con show --active | awk -F: '$2 ~ /wireless|ethernet/ {print $1":"$3}')
+    (( found )) || echo "No FortiClient leftovers found."
+}
