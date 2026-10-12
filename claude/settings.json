@@ -2,7 +2,10 @@
   "permissions": {
     "defaultMode": "auto",
     "allow": [
-      "Bash(git reset --soft:*)"
+      "Bash(git reset --soft:*)",
+      "Bash(ssh 223:*)",
+      "Bash(ssh 222:*)",
+      "Bash(ssh LirycCalcul:*)"
     ],
     "deny": [
       "Read(~/claude-vault/**/prompts.md)"
